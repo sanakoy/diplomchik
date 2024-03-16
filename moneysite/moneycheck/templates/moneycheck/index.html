@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>{{ title | title }}</h1>
+<h3>Общие {{ title }} за месяц: {{ total }}</h3>
+
+{% for cat in categories %}
+    <p><a href="{% url 'add' cat.id %}">{{ cat }}</a>|
+        {% if cat.plan.precent != None %}
+         План выполнен на {{ cat.plan.precent | floatformat:"1" }} %
+        {% else %}
+        <a href="{% url 'plancat' cat.id %}">Поставить план</a>
+        {% endif %}
+        |<a href="{% url 'deletecat' cat.id %}">Удалить</a></p>
+    {% if cat.total_spending == None %}
+        <p>0.0</p>
+    {% else %}
+        <p>{{cat.total_spending}}</p>
+    {% endif %}
+    <br>
+{% endfor %}
+<a href="{% url 'addcat' operation %}">Добавить категорию</a>
+
+{% endblock %}

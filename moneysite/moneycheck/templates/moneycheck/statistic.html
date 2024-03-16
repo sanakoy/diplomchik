@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% if operation == 'spending' %}
+<h1>Статистика по расходам</h1>
+<h3><a href="{% url 'statistic' 'profit' month %}">Посмотреть статистику доходов</a></h3>
+{% elif operation == 'profit' %}
+<h1>Статистика по доходам</h1>
+<h3><a href="{% url 'statistic' 'spending' month %}">Посмотреть статистику расходов</a></h3>
+
+{% endif %}
+{% for m in months %}
+<a href="{% url 'statistic' operation m %}">{{m}}</a>
+{% endfor %}
+<!--{% for s in stat %}-->
+<!--    <p>{{ s }} | <a href="{% url 'delete' s.id %}">Удалить</a></p>-->
+<!--    <p>Дата: {{ s.date }}</p>-->
+<!--    <p>Категория: {{s.kod_cat}}</p>-->
+<!--    <hr>-->
+<!--{% endfor %}-->
+    {% for day, operation_list in grouped_operation.items %}
+        <h2>{{ day }}:</h2>
+        {% for operation in operation_list %}
+            <p>{{ operation.sum }} - {{ operation.comment }} | Категория: {{ operation.kod_cat }}| <a href="{% url 'delete' operation.id %}">Удалить</a></p>
+            <!-- Здесь вы можете добавить другие поля, связанные с записью operation -->
+        {% endfor %}
+    {% endfor %}
+{% endblock %}
