@@ -7,7 +7,7 @@
 <body>
 {% for m in menu %}
     {% if m.url_name == 'statistic' %}
-        <a href="{% url m.url_name m.slug1 m.slug2 %}">{{ m.title }}</a>
+        <a href="{% url m.url_name m.operation m.year m.month %}">{{ m.title }}</a>
     {% else %}
         <a href="{% url m.url_name m.slug %}">{{ m.title }}</a>
     {% endif %}

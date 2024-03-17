@@ -1,3 +1,4 @@
+from collections import defaultdict
 from itertools import groupby
 from django.db.models.functions import Coalesce, TruncMonth, ExtractMonth
 from django.shortcuts import render, redirect, get_object_or_404, reverse
@@ -8,13 +9,14 @@ import locale
 from datetime import datetime
 
 from .forms import *
-from .models import Category, Spending
+from .models import Category, Operation
 
 current_month = datetime.now().month # для того, чтобы изначально выводилась статистика по текущему месяцу
+current_year = datetime.now().year
 menu = [
     {'title': 'Расходы', 'url_name': 'index', 'slug': 'spending'},
     {'title': 'Доходы', 'url_name': 'index', 'slug': 'profit'},
-    {'title': 'Статистика', 'url_name': 'statistic', 'slug1': 'spending', 'slug2': current_month},
+    {'title': 'Статистика', 'url_name': 'statistic', 'operation': 'spending', 'year': current_year, 'month': current_month},
 ]
 def index(request, operation):
     if operation == 'spending':
@@ -24,8 +26,14 @@ def index(request, operation):
         is_profit = True
         title = 'доходы'
 
-    categories = Category.objects.filter(is_profit=is_profit).annotate(total_spending=Sum('spending__sum'))
-    total = Spending.objects.filter(kod_cat__is_profit=is_profit).aggregate(total_sum=Sum('sum'))['total_sum']
+    categories = Category.objects.filter(is_profit=is_profit).annotate(total_operation=Sum('operation__sum'))
+    total = Operation.objects.filter(kod_cat__is_profit=is_profit).aggregate(total_sum=Sum('sum'))['total_sum']
+
+    for c in categories:
+        if c.plan != None:
+            if c.total_operation != None:
+                c.plan.precent = c.total_operation / c.plan.plan_sum * 100
+                c.save()
     context = {
         'categories': categories,
         'menu': menu,
@@ -36,31 +44,53 @@ def index(request, operation):
 
     return render(request, "moneycheck/index.html", context=context)
 
-def statistic(request, operation, month):
+def statistic(request, operation, year, month):
     if operation == 'spending':
         is_profit = False
 
     elif operation == 'profit':
         is_profit = True
 
-    all_operation = Spending.objects.filter(kod_cat__is_profit=is_profit).filter(date__month=month).order_by('-date')
+    all_operation = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(date__month=month).filter(date__year=year).order_by('-date')
 
     grouped_operation = {}
     for day, day_operation in groupby(all_operation, key=lambda x: x.date.strftime('%d %B')):
         grouped_operation[day] = list(day_operation)
 
-    operations_for_month = Spending.objects.filter(kod_cat__is_profit=is_profit)
+    operations_for_month = Operation.objects.filter(kod_cat__is_profit=is_profit)
 
     unique_months = operations_for_month.annotate(month=ExtractMonth('date')).values_list('month', flat=True).distinct()
     months = [m for m in unique_months if m != None and m != month] # получаем все месяцы
+
+    months_by_year = defaultdict(list)
+
+    # Получить queryset всех уникальных дат из полей 'date'
+    unique_dates = operations_for_month.values_list('date', flat=True).distinct()
+
+    # Извлекаем год и месяц из каждой уникальной даты и добавляем уникальные месяцы в словарь
+    for date in unique_dates:
+        if date:
+            year = date.year
+            month = date.month
+            if month not in months_by_year[year]:
+                months_by_year[year].append(month)
+            months_by_year[year].sort(reverse=True)
+
+    # Преобразуем словарь в обычный словарь, а не defaultdict
+    months_by_year = dict(months_by_year)
+
+    # Выводим словарь, где ключ это год, а значение это список уникальных месяцев конкретного года
+    print(months_by_year)
 
     context = {
         'menu': menu,
         'grouped_operation': grouped_operation,
         'operation': operation,
-        'month': current_month,
+        'month': month,
+        'year': year,
         'title': 'Статистика',
         'months': months,
+        'months_year': months_by_year,
     }
 
     return render(request, "moneycheck/statistic.html", context=context)
@@ -72,7 +102,7 @@ def add(request, cat_id):
             category = Category.objects.get(pk=cat_id)
             data['kod_cat'] = category
             # print(form.cleaned_data)
-            Spending.objects.create(**data)
+            Operation.objects.create(**data)
             if category.is_profit:
                 redirect_url = reverse('index', kwargs={'operation': 'profit'})
             elif not category.is_profit:
@@ -91,13 +121,13 @@ def add(request, cat_id):
 def addcat(request, operation):
     if operation == 'spending':
         if request.POST:
-            form = AddSpendingCatForm(request.POST)
+            form = AddOperationCatForm(request.POST)
             if form.is_valid():
                 form.save()
                 redirect_url = reverse('index', kwargs={'operation': 'spending'})
                 return redirect(redirect_url)
         else:
-            form = AddSpendingCatForm
+            form = AddOperationCatForm
     elif operation == 'profit':
         if request.POST:
             form = AddProfitCatForm(request.POST)
@@ -127,7 +157,7 @@ def deletecat(request, cat_id):
     return redirect(redirect_url)
 
 def delete(request, id):
-    money = get_object_or_404(Spending, pk=id)
+    money = get_object_or_404(Operation, pk=id)
     money.delete()
     print(money.date.month)
     month = money.date.month
@@ -145,7 +175,7 @@ def plancat(request, cat_id):
         if form.is_valid():
             data = form.cleaned_data
             category = Category.objects.get(pk=cat_id)
-            total = Spending.objects.filter(kod_cat=cat_id).aggregate(total_sum=Sum('sum'))['total_sum']
+            total = Operation.objects.filter(kod_cat=cat_id).aggregate(total_sum=Sum('sum'))['total_sum']
             print(data['plan_sum'], type(data['plan_sum']))
             if total == None:
                 precent = 0

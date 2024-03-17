@@ -13,10 +13,10 @@
         <a href="{% url 'plancat' cat.id %}">Поставить план</a>
         {% endif %}
         |<a href="{% url 'deletecat' cat.id %}">Удалить</a></p>
-    {% if cat.total_spending == None %}
+    {% if cat.total_operation == None %}
         <p>0.0</p>
     {% else %}
-        <p>{{cat.total_spending}}</p>
+        <p>{{cat.total_operation}}</p>
     {% endif %}
     <br>
 {% endfor %}

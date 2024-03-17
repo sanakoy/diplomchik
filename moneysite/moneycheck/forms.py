@@ -5,7 +5,7 @@ class AddMoneyForm(forms.Form):
     sum = forms.FloatField(label='Сумма')
     comment = forms.CharField(max_length=255, label='Комментарий', required=False)
 
-class AddSpendingCatForm(forms.ModelForm):
+class AddOperationCatForm(forms.ModelForm):
 
     class Meta:
         model = Category

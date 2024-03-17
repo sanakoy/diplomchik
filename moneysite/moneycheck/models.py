@@ -18,10 +18,10 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
-class Spending(models.Model):
+class Operation(models.Model):
     sum = models.FloatField(default=0)
     comment = models.CharField(max_length=100, default='', blank=True, null=True)
-    # date = models.DateTimeField(auto_now_add=True)
+    # date = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     date = models.DateTimeField(blank=True, null=True)
     kod_cat = models.ForeignKey(Category, on_delete=models.CASCADE)
 
