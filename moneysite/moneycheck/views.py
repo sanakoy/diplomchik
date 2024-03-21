@@ -1,6 +1,6 @@
 from collections import defaultdict
 from itertools import groupby
-from django.db.models.functions import Coalesce, TruncMonth, ExtractMonth
+from django.db.models.functions import Coalesce, TruncMonth, ExtractMonth, ExtractYear
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.db.models import Sum, Count
 from django.http import HttpResponse
@@ -17,6 +17,8 @@ menu = [
     {'title': 'Расходы', 'url_name': 'index', 'slug': 'spending'},
     {'title': 'Доходы', 'url_name': 'index', 'slug': 'profit'},
     {'title': 'Статистика', 'url_name': 'statistic', 'operation': 'spending', 'year': current_year, 'month': current_month},
+    {'title': 'Профиль', 'url_name': 'users:profile'},
+    {'title': 'Выйти', 'url_name': 'users:logout'},
 ]
 def index(request, operation):
     if operation == 'spending':
@@ -26,8 +28,10 @@ def index(request, operation):
         is_profit = True
         title = 'доходы'
 
-    categories = Category.objects.filter(is_profit=is_profit).annotate(total_operation=Sum('operation__sum'))
-    total = Operation.objects.filter(kod_cat__is_profit=is_profit).aggregate(total_sum=Sum('sum'))['total_sum']
+    categories = Category.objects.filter(is_profit=is_profit).filter(user=request.user).annotate(total_operation=Sum('operation__sum'))
+    total = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(kod_cat__user=request.user).aggregate(total_sum=Sum('sum'))['total_sum']
+    if total == None:
+        total = 0.0
 
     for c in categories:
         if c.plan != None:
@@ -51,36 +55,30 @@ def statistic(request, operation, year, month):
     elif operation == 'profit':
         is_profit = True
 
-    all_operation = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(date__month=month).filter(date__year=year).order_by('-date')
-
+    all_operation = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(kod_cat__user=request.user).filter(date__month=month).filter(date__year=year).order_by('-date')
+    total = all_operation.aggregate(total_sum=Sum('sum'))['total_sum']
     grouped_operation = {}
     for day, day_operation in groupby(all_operation, key=lambda x: x.date.strftime('%d %B')):
         grouped_operation[day] = list(day_operation)
 
-    operations_for_month = Operation.objects.filter(kod_cat__is_profit=is_profit)
+    operations_for_month = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(kod_cat__user=request.user)
 
-    unique_months = operations_for_month.annotate(month=ExtractMonth('date')).values_list('month', flat=True).distinct()
-    months = [m for m in unique_months if m != None and m != month] # получаем все месяцы
+    unique_years = operations_for_month.annotate(year=ExtractYear('date')).values_list('year', flat=True).distinct()
 
+    # Создаем словарь, в котором ключами будут годы, а значениями - списки месяцев для каждого года
     months_by_year = defaultdict(list)
 
-    # Получить queryset всех уникальных дат из полей 'date'
-    unique_dates = operations_for_month.values_list('date', flat=True).distinct()
+    # Извлекаем уникальные месяцы для каждого года и добавляем их в соответствующий список месяцев
+    for year in unique_years:
+        unique_months_for_year = operations_for_month.filter(date__year=year).annotate(
+            month=ExtractMonth('date')).values_list('month', flat=True).distinct()
+        months_by_year[year] = sorted(unique_months_for_year, reverse=True)
 
-    # Извлекаем год и месяц из каждой уникальной даты и добавляем уникальные месяцы в словарь
-    for date in unique_dates:
-        if date:
-            year = date.year
-            month = date.month
-            if month not in months_by_year[year]:
-                months_by_year[year].append(month)
-            months_by_year[year].sort(reverse=True)
+    # Теперь отсортируем словарь по ключам (годам) в порядке убывания
+    sorted_months_by_year = dict(sorted(months_by_year.items(), reverse=True))
 
-    # Преобразуем словарь в обычный словарь, а не defaultdict
-    months_by_year = dict(months_by_year)
-
-    # Выводим словарь, где ключ это год, а значение это список уникальных месяцев конкретного года
-    print(months_by_year)
+    # Выведем словарь, где ключи это года, а значения это списки уникальных месяцев для каждого года
+    print(sorted_months_by_year)
 
     context = {
         'menu': menu,
@@ -89,8 +87,9 @@ def statistic(request, operation, year, month):
         'month': month,
         'year': year,
         'title': 'Статистика',
-        'months': months,
-        'months_year': months_by_year,
+        # 'months': months,
+        'months_year': sorted_months_by_year,
+        'total': total,
     }
 
     return render(request, "moneycheck/statistic.html", context=context)
@@ -123,7 +122,10 @@ def addcat(request, operation):
         if request.POST:
             form = AddOperationCatForm(request.POST)
             if form.is_valid():
-                form.save()
+                instance = form.save(commit=False)
+                instance.user = request.user
+                print(request.user)
+                instance.save()
                 redirect_url = reverse('index', kwargs={'operation': 'spending'})
                 return redirect(redirect_url)
         else:

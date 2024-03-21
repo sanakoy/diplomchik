@@ -8,6 +8,8 @@
 {% for m in menu %}
     {% if m.url_name == 'statistic' %}
         <a href="{% url m.url_name m.operation m.year m.month %}">{{ m.title }}</a>
+    {% elif m.url_name == 'users:logout' or m.url_name == 'users:profile'%}
+        <a href="{% url m.url_name %}">{{ m.title }}</a>
     {% else %}
         <a href="{% url m.url_name m.slug %}">{{ m.title }}</a>
     {% endif %}

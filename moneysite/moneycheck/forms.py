@@ -12,6 +12,7 @@ class AddOperationCatForm(forms.ModelForm):
         fields = ['name']
         labels = {'name': 'Название'}
 
+
 class AddProfitCatForm(forms.ModelForm):
     class Meta:
         model = Category
