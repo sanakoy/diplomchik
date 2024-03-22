@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, UserCreationForm
 from django.core.exceptions import ValidationError
 
 app_name = 'users'
@@ -9,22 +9,22 @@ class LoginUserForm(AuthenticationForm):
     password = forms.CharField(label="Пароль")
 
 
-class RegisterUserForm(forms.ModelForm):
-    password = forms.CharField(label="Пароль")
+class RegisterUserForm(UserCreationForm):
+    password1 = forms.CharField(label="Пароль")
     password2 = forms.CharField(label="Подтвердите пароль")
 
     class Meta:
         model = get_user_model()
-        fields = ['username', 'email', 'password', 'password2']
+        fields = ['username', 'email', 'password1', 'password2']
         labels = {
             'email': 'Эл. почта',
         }
 
-    def clean_password2(self):
-        cd = self.cleaned_data
-        if cd['password2'] != cd['password']:
-            raise forms.ValidationError('Пароли не совпадают!')
-        return cd['password']
+    # def clean_password2(self):
+    #     cd = self.cleaned_data
+    #     if cd['password2'] != cd['password']:
+    #         raise forms.ValidationError('Пароли не совпадают!')
+    #     return cd['password']
 
     def clean_email(self):
         email = self.cleaned_data['email']

@@ -4,7 +4,7 @@ from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, reverse
 from django.urls import reverse_lazy
-from django.views.generic import UpdateView
+from django.views.generic import UpdateView, CreateView
 from datetime import datetime
 
 from .forms import *
@@ -65,29 +65,34 @@ def logout_user(request):
     logout(request)
     return redirect('users:login')
 
+class RegisterUser(CreateView):
+    form_class = RegisterUserForm
+    template_name = 'users/register.html'
+    extra_context = {'title': 'Регистрация'}
+    success_url = reverse_lazy('users:login')
 
-def register_user(request):
-    if request.method == "POST":
-        form = RegisterUserForm(request.POST)
-        context = {
-            'form': form,
-        }
-        if form.is_valid():
-            user = form.save(commit=False)
-            cd = form.cleaned_data
-            user.set_password(cd['password'])
-            if get_user_model().objects.filter(email=cd['email']).exists():
-                raise forms.ValidationError('Такая электронная почта уже была зарегистрирована!')
-                redirect_url = reverse('users:register')
-                return  redirect(redirect_url)
-            else:
-                user.save()
-                redirect_url = reverse('users:login')
-                return redirect(redirect_url)
-    else:
-        form = RegisterUserForm()
-
-    return render(request, 'users/register.html', {'form': form})
+# def register_user(request):
+#     if request.method == "POST":
+#         form = RegisterUserForm(request.POST)
+#         context = {
+#             'form': form,
+#         }
+#         if form.is_valid():
+#             user = form.save(commit=False)
+#             cd = form.cleaned_data
+#             user.set_password(cd['password'])
+#             if get_user_model().objects.filter(email=cd['email']).exists():
+#                 raise forms.ValidationError('Такая электронная почта уже была зарегистрирована!')
+#                 redirect_url = reverse('users:register')
+#                 return  redirect(redirect_url)
+#             else:
+#                 user.save()
+#                 redirect_url = reverse('users:login')
+#                 return redirect(redirect_url)
+#     else:
+#         form = RegisterUserForm()
+#
+#     return render(request, 'users/register.html', {'form': form})
 
 
 def profileuser(request):

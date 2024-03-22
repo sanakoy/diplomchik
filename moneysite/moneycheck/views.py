@@ -57,6 +57,8 @@ def statistic(request, operation, year, month):
 
     all_operation = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(kod_cat__user=request.user).filter(date__month=month).filter(date__year=year).order_by('-date')
     total = all_operation.aggregate(total_sum=Sum('sum'))['total_sum']
+    if total == None:
+        total = 0.0
     grouped_operation = {}
     for day, day_operation in groupby(all_operation, key=lambda x: x.date.strftime('%d %B')):
         grouped_operation[day] = list(day_operation)
