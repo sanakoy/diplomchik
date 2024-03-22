@@ -25,32 +25,40 @@ menu = [
 #     template_name = "users/login.html"
 #     extra_context = {'title': 'Авторизация'}
 
-def login_user(request):
-    if request.user.is_authenticated:
-        redirect_url = reverse('index', kwargs={'operation': 'spending'})
-        return redirect(redirect_url)
-    if request.method == 'POST':
-        form = LoginUserForm(request.POST)
-        context = {
-            'form': form,
-        }
-        if form.is_valid():
-            cd = form.cleaned_data
-            user = authenticate(request, username=cd['login'],
-                                password=cd['password'])
-            if user and user.is_active:
-                login(request,user)
-                redirect_url = reverse('index', kwargs={'operation': 'spending'})
-                return redirect(redirect_url)
-            else:
-                context['not_valid'] = 'Неверное имя пользователя или пароль!'
-    else:
-        form = LoginUserForm()
-        context = {
-            'form': form,
-        }
+# def login_user(request):
+#     if request.user.is_authenticated:
+#         redirect_url = reverse('index', kwargs={'operation': 'spending'})
+#         return redirect(redirect_url)
+#     if request.method == 'POST':
+#         form = LoginUserForm(request.POST)
+#         context = {
+#             'form': form,
+#         }
+#         if form.is_valid():
+#             cd = form.cleaned_data
+#             user = authenticate(request, username=cd['login'],
+#                                 password=cd['password'])
+#             if user and user.is_active:
+#                 login(request,user)
+#                 redirect_url = reverse('index', kwargs={'operation': 'spending'})
+#                 return redirect(redirect_url)
+#             else:
+#                 context['not_valid'] = 'Неверное имя пользователя или пароль!'
+#     else:
+#         form = LoginUserForm()
+#         context = {
+#             'form': form,
+#         }
+#
+#     return render(request, 'users/login.html', context=context)
 
-    return render(request, 'users/login.html', context=context)
+class LoginUser(LoginView):
+    form_class = LoginUserForm
+    template_name = 'users/login.html'
+    extra_context = {'title': 'Авторизация'}
+
+    def get_success_url(self):
+        return reverse_lazy('index', kwargs={'operation': 'spending'})
 
 
 def logout_user(request):

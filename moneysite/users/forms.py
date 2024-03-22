@@ -4,8 +4,8 @@ from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.core.exceptions import ValidationError
 
 app_name = 'users'
-class LoginUserForm(forms.Form):
-    login = forms.CharField(label="Логин")
+class LoginUserForm(AuthenticationForm):
+    username = forms.CharField(label="Логин")
     password = forms.CharField(label="Пароль")
 
 
