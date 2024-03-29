@@ -6,10 +6,14 @@ from django.db.models import Sum, Count
 from django.http import HttpResponse
 import locale
 
+
 from datetime import datetime
+
+from rest_framework import generics
 
 from .forms import *
 from .models import Category, Operation
+from .serializers import CategorySerializer
 
 current_month = datetime.now().month # для того, чтобы изначально выводилась статистика по текущему месяцу
 current_year = datetime.now().year
@@ -202,3 +206,15 @@ def plancat(request, cat_id):
         'form': form
     }
     return render(request, "moneycheck/form.html", context=context)
+
+
+def frontend(request):
+    return render(request, "moneycheck/frontend.html")
+
+
+
+
+
+class CategoryAPIView(generics.ListAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer

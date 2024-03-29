@@ -10,4 +10,5 @@ urlpatterns = [
     path("deletecat/<int:cat_id>", views.deletecat, name="deletecat"),
     path("delete/<int:id>", views.delete, name="delete"),
     path("plancat/<int:cat_id>/", views.plancat, name="plancat"),
+    path("frontend/", views.frontend, name="frontend"),
 ]
