@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>{{ title | title }}</title>
+<!--    <link rel="stylesheet" href="https://unpkg.com/flexboxgrid2@7.2.1/flexboxgrid2.min.css">-->
+<!--    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.8/dist/vue.js"></script>-->
+<!--    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>-->
 </head>
 <body>
 {% for m in menu %}
@@ -11,9 +14,10 @@
     {% elif m.url_name == 'users:logout' or m.url_name == 'users:profile'%}
         <a href="{% url m.url_name %}">{{ m.title }}</a>
     {% else %}
-        <a href="{% url m.url_name m.slug %}">{{ m.title }}</a>
+        <a href="{% url m.slug %}">{{ m.title }}</a>
     {% endif %}
 {% endfor %}
 {% block content %} {% endblock %}
+<!--<script src="/static/statistic.js"></script>-->
 </body>
 </html>

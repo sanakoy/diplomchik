@@ -58,7 +58,7 @@ class LoginUser(LoginView):
     extra_context = {'title': 'Авторизация'}
 
     def get_success_url(self):
-        return reverse_lazy('index', kwargs={'operation': 'spending'})
+        return reverse_lazy('spending')
 
 
 def logout_user(request):

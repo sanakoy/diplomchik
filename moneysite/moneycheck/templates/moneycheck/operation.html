@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    {% load static %}
+<link type="text/css" href="{% static 'css/style.css' %}" rel="stylesheet" />        <link rel="stylesheet" href="https://unpkg.com/flexboxgrid2@7.2.1/flexboxgrid2.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.7.8/dist/vue.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/vuejs-datepicker/1.6.2/vuejs-datepicker.min.js" integrity="sha512-SxUBqfNhPSntua7WUkt171HWx4SV4xoRm14vLNsdDR/kQiMn8iMUeopr8VahPpuvRjQKeOiMJTJFH5NHzNUHYQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+
+{% for m in menu %}
+    {% if m.url_name == 'statistic' %}
+        <a href="{% url m.url_name m.operation m.year m.month %}">{{ m.title }}</a>
+    {% elif m.url_name == 'users:logout' or m.url_name == 'users:profile'%}
+        <a href="{% url m.url_name %}">{{ m.title }}</a>
+    {% else %}
+        <a href="{% url m.slug %}">{{ m.title }}</a>
+    {% endif %}
+{% endfor %}
+
+{% verbatim %}
+<div id="frontend">
+    {{total}}
+    <div class="diagram">
+    <!-- Контейнер для отображения круговой диаграммы -->
+    <canvas id="pieChart" width="100" height="100"></canvas>
+  </div>
+    <div class="categories">
+    <span v-for="cat in cats" @click="openModal(cat.name, cat.id, cat.precent, cat.plan_id, cat.plan_sum)">
+        <div class="category">
+        <p>{{ cat.name }}</p>
+            <img :src="cat.image_url" width="50px" height="50px">
+        <p>{{ cat.cat_sum }}</p>
+        </div>
+    </span>
+    </div>
+    <button @click="openModalAddCat">Добавить категорию</button>
+    <div v-if="show" class="modal">
+
+        <div class="modal-window">
+            <div class="container" v-if="plan_id === null">
+                <button @click="openModalAddPlan" class="btn-plan" >Создать план</button>
+                <button @click="closeModal" class="btn-close-calc">Х</button>
+            </div>
+            <div class="ed-plan" v-else >
+                <div class="show-plan" >
+                        План выполнен на {{precent}}%
+                </div>
+                    <button class="btn-ed" @click="openModalEdPlan">
+                        <img src="https://w7.pngwing.com/pngs/811/231/png-transparent-draw-edit-message-pen-pencil-text-write-minimalisticons-icon.png" width="20" height="20">
+                    </button>
+                <button @click="closeModal" class="btn-close-calc">Х</button>
+            </div>
+
+
+            <div class="grid">
+                <input type="text" placeholder="Заметка..." v-model="comment">
+                <input @keyup.enter="calc" type="text" placeholder="0" v-model="result"></input>
+                <button class="cell op" @click="del">Del</button>
+                <button class="cell num" @click='input(num)' v-for="num in numbers">{{ num }}</button>
+                <button class="cell op" @click="input(op)" v-for="op in operations">{{ op }}</button>
+                <button class="cell op" @click="reset">R</button>
+                <button class="cell op" @click="calc">=</button>
+                <button class="cel op" @click="submitForm">Ok</button>
+            </div>
+            <button @click="openModalEdCat">Редактировать категорию</button>
+            <div id="app">
+                <datepicker v-model="selectedDate"></datepicker>
+                <button @click="submitDate">Submit</button>
+            </div>
+        </div>
+        <div class="overlay"></div>
+    </div>
+<!--    Модальное окно для добавления плана-->
+    <div v-if="showAddPlan" class="modal">
+        <div class="modal-window-plan">
+            <button @click="closeModalAddPlan" class="btn-close-calc">Х</button>
+            <h1>Выставление плана для категории {{cat_name}}</h1>
+            <input type="text" placeholder="0" v-model="sumPlan">
+            <button @click="submitAddPlan">Ок</button>
+        </div>
+    </div>
+<!--    Модальное окно для изменения или удаления плана-->
+    <div v-if="showEdPlan" class="modal">
+        <div class="modal-window-plan">
+            <button @click="closeModalEdPlan" class="btn-close-calc">Х</button>
+            <h1>Редактирование плана для категории {{cat_name}}</h1>
+            <input type="text" placeholder="0" v-model="sumPlan">
+            <button @click="submitEdPlan">Ок</button>
+            <button @click="submitDelPlan">Удалить</button>
+        </div>
+    </div>
+<!--    Модальное окно для добавления категории-->
+    <div v-if="showAddCat" class="modal">
+        <div class="modal-window-plan">
+            <button @click="closeModalAddCat" class="btn-close-calc">Х</button>
+            <h2>Добавление категории</h2>
+            <input type="text" placeholder="Название..." v-model="cat_name">
+            <button @click="openModalImageCat">Выберите картинку</button>
+            <button @click="submitAddCat">Ок</button>
+        </div>
+        <div class="overlay"></div>
+    </div>
+<!--    Модальное окно для редактирования или удаления категории-->
+    <div v-if="showEdCat" class="modal">
+        <div class="modal-window-plan">
+            <button @click="closeModalEdCat" class="btn-close-calc">X</button>
+            <h2>Редактирование категории {{cat_name}}</h2>
+            <input type="text" placeholder="Название..." v-model="cat_name">
+            <button @click="openModalImageCat">Выберите картинку</button>
+            <button @click="submitEdCat">Ок</button>
+            <button @click="submitDelCat">Удалить</button>
+        </div>
+    </div>
+
+    <div v-if="showImageCat" class="modal">
+        <div class="modal-window-plan">
+            <button @click="closeModalImageCat" class="btn-close-calc">X</button>
+             <div>
+                <img v-for="(image, index) in images" :key="index" :src="image" alt="Изображение" width="50px" height="50px" @click="selectImageCat(image)">
+             </div>
+        </div>
+    </div>
+
+    
+
+</div>
+
+
+{% endverbatim %}
+
+
+
+<style>
+<!--    * {-->
+<!--        font-family:  'Gilroy',sans-serif;-->
+<!--        transition: 0.3s all;-->
+<!--        font-weight: 600;-->
+<!--    }-->
+
+<!--    #app {-->
+<!--        width: 200px;-->
+<!--        box-shadow: 0 3px 15px grey;-->
+<!--    }-->
+<!--    input[type="text"] {-->
+<!--        width: 200px;-->
+<!--        border: 0;-->
+<!--        color: #243849;-->
+<!--        font-size: 18px;-->
+<!--        padding: 5px 5px;-->
+<!--        text-align: right;-->
+<!--    }-->
+<!--    .grid {-->
+<!--        display: flex;-->
+<!--        flex-wrap: wrap;-->
+<!--        justify-content: space-around;-->
+<!--        width: 100%;-->
+<!--    }-->
+<!--    .cell {-->
+<!--        flex: 33%;-->
+<!--        height: 50px;-->
+<!--        font-size: 18px;-->
+<!--        border: none;-->
+<!--    }-->
+<!--    .num {-->
+<!--        background-color: #243849;-->
+<!--        color: #fff;-->
+<!--        font-weight: 400;-->
+<!--    }-->
+<!--    .cell:hover {-->
+<!--        background-color: #182530;-->
+<!--    }-->
+<!--    .op {-->
+<!--        background-color: #ff9900; -->
+<!--        color: #243849;-->
+<!--    }-->
+<!--    .fdf {-->
+<!--        color: red;-->
+<!--    }-->
+<!--    .modal {-->
+<!--        position: fixed;-->
+<!--        top: 0;-->
+<!--        left: 0;-->
+<!--        width: 100%;-->
+<!--        height: 100%;-->
+<!--        display: flex;-->
+<!--        align-items: center;-->
+<!--        justify-content: center;-->
+
+<!--    }-->
+
+<!--    .modal .overlay {-->
+<!--        position: absolute;-->
+<!--        top: 0;-->
+<!--        left: 0;-->
+<!--        width: 100%;-->
+<!--        height: 100%;-->
+<!--        background-color: #000;-->
+<!--        opacity: 0.7;-->
+<!--        z-index: 0;-->
+<!--    }-->
+
+<!--    .modal-window {-->
+<!--        position: relative;-->
+<!--        z-index: 2;-->
+<!--        width: 550px;-->
+<!--        border-radius: 10px;-->
+<!--        box-shadow: 0 10px 15px rgba(0, 0, 0, .4);-->
+<!--        background: #fff;-->
+<!--    }-->
+<!--    .plan {-->
+<!--        width: 200px;-->
+<!--        height: 500px;-->
+<!--        background-color: navy;-->
+<!--    }-->
+<!--    .container {-->
+<!--        display: flex;-->
+<!--        height: 50px;-->
+<!--    }-->
+<!--    .btn-plan {-->
+<!--        flex: 9;-->
+<!--        border: 0px;-->
+<!--    }-->
+<!--    .btn-close-calc {-->
+<!--        flex: 1;-->
+<!--        border: 0px;-->
+<!--        background: red;-->
+<!--        font-size: 35px;-->
+<!--        }-->
+<!--    .modal-window-plan {-->
+<!--        width: 550px;-->
+<!--        height: 381px;-->
+<!--        background: white;-->
+<!--        z-index: 2;-->
+<!--    }-->
+
+<!--    .ed-plan {-->
+<!--        display: flex;-->
+<!--    }-->
+<!--    .show-plan {-->
+<!--        flex: 8;-->
+<!--        display: flex;-->
+<!--        justify-content: center;-->
+<!--        align-items: center;-->
+<!--    }-->
+
+<!--    .btn-ed {-->
+<!--        flex: 1;-->
+<!--        border: 0px;-->
+<!--    }-->
+<!--    .category {-->
+<!--        border: 3px solid black;-->
+<!--        margin-bottom: 5px;-->
+<!--        width: 80px;-->
+<!--        margin-right: 10px;-->
+<!--        display: flex;-->
+<!--        justify-content: center;-->
+<!--        flex-wrap: wrap;-->
+<!--    }-->
+
+<!--    .categories {-->
+<!--        display: flex;-->
+<!--    }-->
+
+</style>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
