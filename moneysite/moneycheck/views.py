@@ -517,6 +517,8 @@ class StatisticAPIView(APIView):
             'months_year': sorted_months_by_year,
             'total': total,
             'cats_sum': cats_sum,
+            'current_month': current_month,
+            'current_year': current_year,
         })
 
 @csrf_exempt

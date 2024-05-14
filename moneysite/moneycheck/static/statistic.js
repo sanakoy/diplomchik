@@ -44,9 +44,13 @@ new Vue ({
         year: '',
         months_year: '',
         total: '',
+        current_month: '',
+        current_year: '',
         showEdOp: false,
         opId: '',
         opComment: '',
+        showSpending: false,
+        showProfit: false,
         opSum: '',
         opKodCat: '',
         catsSum: '',
@@ -81,9 +85,18 @@ new Vue ({
             vm.year =  response.data.year;
             vm.months_year =  response.data.months_year;
             vm.total =  response.data.total;
+            vm.current_month = response.data.current_month;
+            vm.current_year = response.data.current_year;
+            if (response.data.operation == 'spending') {
+                this.showSpending = false;
+                this.showProfit = true;
+            } else {
+                this.showSpending = true;
+                this.showProfit = false;
+            }
+            console.log(this.current_year);
+            console.log(this.showProfit);
 
-            console.log(response.data.cats_sum);
-            console.log(this.host);
 
         var ctx = document.getElementById('pieChart').getContext('2d');
 

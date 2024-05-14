@@ -38,6 +38,12 @@
       <br>
     </span>
   </nav>
+    <div v-if="operation == 'profit'">
+        <a :href="`${host}/statistic/spending/${parseInt(current_year)}/${parseInt(current_month)}`">Посмотреть расходы</a>
+    </div>
+    <div v-if="operation == 'spending'">
+        <a :href="`${host}/statistic/profit/${parseInt(current_year)}/${parseInt(current_month)}`">Посмотреть доходы</a>
+    </div>
   <div v-for="(operations, day) in grouped_operation">
     <h3>{{day}}:</h3>
     <div v-for="operation in operations">
