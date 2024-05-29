@@ -7,4 +7,5 @@
         <div class="form-error">{{ f.errors }}</div>
     {% endfor %}
     <p><button type="submit">Зарегистрироваться</button></p>
+    <p>Уже зарегистрированы? <a href="{% url 'users:login' %}">Войти</a></p>
 </form>

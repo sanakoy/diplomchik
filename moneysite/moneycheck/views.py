@@ -560,6 +560,7 @@ def del_operation_api(request):
             category = Category.objects.get(pk=operation.kod_cat.id)
             operation.delete()
             upd_cat_sum(category.id)
+            category = Category.objects.get(pk=category.id)
             total = category.cat_sum
             if category.plan_id != None:
                 plan = Plan.objects.get(pk=category.plan_id)
@@ -569,6 +570,7 @@ def del_operation_api(request):
                     precent = total / plan.plan_sum * 100
                 plan.precent = round(precent, 1)
                 plan.save()
+                print(plan.precent)
         except ObjectDoesNotExist:
             print('ашипка')
         return JsonResponse({'message': 'Plan saved successfully', 'op_id': operation.id})

@@ -4,7 +4,7 @@ from django.db import models
 
 class Plan(models.Model):
     precent = models.FloatField(default=0)
-    is_global = models.BooleanField(default=False)
+    # is_global = models.BooleanField(default=False)
     date = models.DateField(auto_now_add=True)
     plan_sum = models.FloatField(default=0)
 
@@ -13,7 +13,7 @@ class Plan(models.Model):
 class Category(models.Model):
     name = models.CharField(max_length=100)
     cat_sum = models.FloatField(default=0)
-    parent = models.ForeignKey("Category", on_delete=models.CASCADE, blank=True, null=True)
+    # parent = models.ForeignKey("Category", on_delete=models.CASCADE, blank=True, null=True)
     is_profit = models.BooleanField(default=False)
     date_upd_cat_sum = models.DateTimeField(blank=True, null=True)
     image_url = models.URLField(blank=True, null=True)
