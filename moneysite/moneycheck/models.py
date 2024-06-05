@@ -15,6 +15,7 @@ class Category(models.Model):
     cat_sum = models.FloatField(default=0)
     # parent = models.ForeignKey("Category", on_delete=models.CASCADE, blank=True, null=True)
     is_profit = models.BooleanField(default=False)
+    date_create = models.DateTimeField(blank=True, null=True)
     date_upd_cat_sum = models.DateTimeField(blank=True, null=True)
     image_url = models.URLField(blank=True, null=True)
     plan = models.OneToOneField(Plan, on_delete=models.SET_NULL, blank=True, null=True)
@@ -35,15 +36,6 @@ class Operation(models.Model):
             return str(self.sum)
         return str(self.sum) + ' ' + self.comment
 
-
-# class Profit(models.Model):
-#     comment = models.CharField(max_length=100)
-#     sum = models.FloatField(default=0)
-#     date = models.DateTimeField("Дата расхода")
-#     kod_cat = models.ForeignKey(Category, on_delete=models.CASCADE)
-#
-#     def __str__(self):
-#         return self.sum
 
 
 

@@ -41,196 +41,14 @@ menu =  [
         {'title': 'Выйти', 'url_name': 'users:logout'},
     ]
 
-def index(request, operation):
-    if operation == 'spending':
-        is_profit = False
-        title = 'расходы'
-    elif operation == 'profit':
-        is_profit = True
-        title = 'доходы'
+menu_dict = {
+        'spending': {'title': 'Расходы', 'url_name': 'index', 'slug': 'spending'},
+        'profit': {'title': 'Доходы', 'url_name': 'index', 'slug': 'profit'},
+        'statistic': {'title': 'Статистика', 'url_name': 'statistic', 'operation': 'spending', 'year': current_year, 'month': current_month},
+        'profile': {'title': 'Профиль', 'url_name': 'users:profile'},
+        'logout': {'title': 'Выйти', 'url_name': 'users:logout'},
+}
 
-    categories = Category.objects.filter(is_profit=is_profit).filter(user=request.user).annotate(total_operation=Sum('operation__sum'))
-    total = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(kod_cat__user=request.user).aggregate(total_sum=Sum('sum'))['total_sum']
-    if total == None:
-        total = 0.0
-
-    for c in categories:
-        if c.plan != None:
-            if c.total_operation != None:
-                c.plan.precent = c.total_operation / c.plan.plan_sum * 100
-                c.save()
-    context = {
-        'categories': categories,
-        'menu': menu,
-        'total': total,
-        'operation': operation,
-        'title': title,
-    }
-
-    return render(request, "moneycheck/index.html", context=context)
-
-def statistic(request, operation, year, month):
-    if operation == 'spending':
-        is_profit = False
-
-    elif operation == 'profit':
-        is_profit = True
-
-    all_operation = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(kod_cat__user=request.user).filter(date__month=month).filter(date__year=year).order_by('-date')
-    total = all_operation.aggregate(total_sum=Sum('sum'))['total_sum']
-    if total == None:
-        total = 0.0
-    grouped_operation = {}
-    for day, day_operation in groupby(all_operation, key=lambda x: x.date.strftime('%d %B')):
-        grouped_operation[day] = list(day_operation)
-
-    operations_for_month = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(kod_cat__user=request.user)
-
-    unique_years = operations_for_month.annotate(year=ExtractYear('date')).values_list('year', flat=True).distinct()
-
-    # Создаем словарь, в котором ключами будут годы, а значениями - списки месяцев для каждого года
-    months_by_year = defaultdict(list)
-
-    # Извлекаем уникальные месяцы для каждого года и добавляем их в соответствующий список месяцев
-    for year in unique_years:
-        unique_months_for_year = operations_for_month.filter(date__year=year).annotate(
-            month=ExtractMonth('date')).values_list('month', flat=True).distinct()
-        months_by_year[year] = sorted(unique_months_for_year, reverse=True)
-
-    # Теперь отсортируем словарь по ключам (годам) в порядке убывания
-    sorted_months_by_year = dict(sorted(months_by_year.items(), reverse=True))
-
-    # Выведем словарь, где ключи это года, а значения это списки уникальных месяцев для каждого года
-    print('menu', menu)
-    print('grouped_operation', grouped_operation)
-    print('operation', operation)
-    print('month', month)
-    print('year', year)
-    print('months_year', sorted_months_by_year)
-    print('total', total)
-
-    context = {
-        'menu': menu,
-        'grouped_operation': grouped_operation,
-        'operation': operation,
-        'month': month,
-        'year': year,
-        'title': 'Статистика',
-        # 'months': months,
-        'months_year': sorted_months_by_year,
-        'total': total,
-    }
-
-
-    return render(request, "moneycheck/statistic.html", context=context)
-
-def add(request, cat_id):
-    if request.method == 'POST':
-        form = AddMoneyForm(request.POST)
-        if form.is_valimd():
-            data = form.cleaned_data
-            category = Category.objects.get(pk=cat_id)
-            data['kod_cat'] = category
-            # print(form.cleaned_data)
-            Operation.objects.create(**data)
-            if category.is_profit:
-                redirect_url = reverse('index', kwargs={'operation': 'profit'})
-            elif not category.is_profit:
-                redirect_url = reverse('index', kwargs={'operation': 'spending'})
-            return redirect(redirect_url)
-    form = AddMoneyForm()
-    category = Category.objects.get(pk=cat_id)
-
-    context = {
-        'title': 'Занесите расходы',
-        'category': category,
-        'form': form
-    }
-    return render(request, "moneycheck/form.html", context=context)
-
-def addcat(request, operation):
-    if operation == 'spending':
-        if request.POST:
-            form = AddOperationCatForm(request.POST)
-            if form.is_valid():
-                instance = form.save(commit=False)
-                instance.user = request.user
-                print(request.user)
-                instance.save()
-                redirect_url = reverse('index', kwargs={'operation': 'spending'})
-                return redirect(redirect_url)
-        else:
-            form = AddOperationCatForm
-    elif operation == 'profit':
-        if request.POST:
-            form = AddProfitCatForm(request.POST)
-            if form.is_valid():
-                form.save()
-                redirect_url = reverse('index', kwargs={'operation': 'profit'})
-                return redirect(redirect_url)
-        else:
-            form = AddProfitCatForm
-
-    context = {
-        'title': 'Добавьте категорию',
-        'form': form,
-    }
-
-    return render(request, "moneycheck/form.html", context=context)
-
-
-def deletecat(request, cat_id):
-    category = get_object_or_404(Category, pk=cat_id)
-    category.delete() # Удаляем объект из базы данных
-    if category.is_profit == False:
-        redirect_url = reverse('index', kwargs={'operation': 'spending'})
-    else:
-        redirect_url = reverse('index', kwargs={'operation': 'profit'})
-
-    return redirect(redirect_url)
-
-def delete(request, id):
-    money = get_object_or_404(Operation, pk=id)
-    money.delete()
-    print(money.date.month)
-    month = money.date.month
-    if money.kod_cat.is_profit == False:
-        redirect_url = reverse('statistic', kwargs={'operation': 'spending', 'month': month})
-        return redirect(redirect_url)
-    elif money.kod_cat.is_profit == True:
-        redirect_url = reverse('statistic', kwargs={'operation': 'profit', 'month': month})
-        return redirect(redirect_url)
-
-
-def plancat(request, cat_id):
-    if request.method == 'POST':
-        form = PlanCatForm(request.POST)
-        if form.is_valid():
-            data = form.cleaned_data
-            category = Category.objects.get(pk=cat_id)
-            total = Operation.objects.filter(kod_cat=cat_id).aggregate(total_sum=Sum('sum'))['total_sum']
-            print(data['plan_sum'], type(data['plan_sum']))
-            if total == None:
-                precent = 0
-            else:
-                precent = total / data['plan_sum'] * 100
-
-            data['precent'] = precent
-            plan = Plan.objects.create(**data)
-            category.plan = plan
-            category.save()
-            if category.is_profit:
-                redirect_url = reverse('index', kwargs={'operation': 'profit'})
-            elif not category.is_profit:
-                redirect_url = reverse('index', kwargs={'operation': 'spending'})
-            return redirect(redirect_url)
-    form = PlanCatForm()
-
-    context = {
-        'title': 'Назначьте план',
-        'form': form
-    }
-    return render(request, "moneycheck/form.html", context=context)
 
 
 def spending(request):
@@ -246,7 +64,7 @@ def spending(request):
             print("Дата обновления не установлена для категории с id:", cat.id)
 
 
-    return render(request, "moneycheck/operation.html", {'menu': menu, 'current_url': request.build_absolute_uri})
+    return render(request, "moneycheck/operation.html", {'menu': menu_dict, 'current_url': request.build_absolute_uri})
 
 
 def upd_cat_sum(id):
@@ -260,33 +78,22 @@ def upd_cat_sum(id):
     cat.save()
 
 
-
-
-# class CategoryAPIView(generics.ListAPIView):
-#     serializer_class = CategorySerializer
-#
-#     def get_queryset(self):
-#         # Получаем текущего пользователя
-#         user = self.request.user
-#         # Фильтруем категории по пользователю
-#         # queryset = Category.objects.filter(user=user).annotate(total_operation=Sum('operation__sum'))
-#         queryset = Category.objects.filter(user=user)
-#         return queryset
-
-
 class CategoryAPIView(APIView):
     def get(self, request):
+        
         current_url = request.build_absolute_uri()
         print(current_url)
         if current_url == "http://127.0.0.1:8000/api/category/spending/":
             is_profit = False
             operation = "spending"
+            operation_rus = "Расходы"
         else:
             is_profit = True
             operation = "profit"
+            operation_rus = "Доходы"
         data = []
         all_operation = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(
-            kod_cat__user=request.user).filter(date__month=current_month).filter(date__year=current_year).order_by('-date')
+            kod_cat__user=request.user).filter(date__month=current_month).filter(date__year=current_year)
 
         cats_sum = {}
         for i in all_operation:
@@ -298,7 +105,7 @@ class CategoryAPIView(APIView):
         if total == None:
             total = 0.0
 
-        categories = Category.objects.filter(user=request.user, is_profit=is_profit)
+        categories = Category.objects.filter(user=request.user, is_profit=is_profit).order_by('date_create')
         for category in categories:
             serializer_data = CategorySerializer1(category).data
 
@@ -357,7 +164,6 @@ def add_plan_api(request):
         cat = request.POST.get('cat_id')
         category = Category.objects.get(pk=cat)
 
-        # total = Operation.objects.filter(kod_cat=category).aggregate(total_sum=Sum('sum'))['total_sum']
         total = category.cat_sum
         if total == None:
             precent = 0
@@ -424,7 +230,7 @@ def add_cat_api(request):
             is_profit = True
         date = datetime.now()
         print('json', request.POST)
-        Category.objects.create(name=name, user=request.user, date_upd_cat_sum=date, cat_sum=0, image_url=image, is_profit=is_profit)
+        Category.objects.create(name=name, user=request.user, date_create=date, date_upd_cat_sum=date, cat_sum=0, image_url=image, is_profit=is_profit)
     return JsonResponse({'message': 'Добавление категории'})
 
 @csrf_exempt
@@ -457,7 +263,7 @@ class MenuAPIView(APIView):
 
 
 def vue_statistic(request, operation, year, month):
-    return render(request, "moneycheck/vue_statistic.html", context={'menu': menu})
+    return render(request, "moneycheck/vue_statistic.html", context={'menu': menu_dict})
 
 class StatisticAPIView(APIView):
 
@@ -486,7 +292,7 @@ class StatisticAPIView(APIView):
             total = 0.0
         grouped_operation = {}
         for day, day_operation in groupby(all_operation, key=lambda x: x.date.strftime('%d %B')):
-            day_operations_serialized = [{'id': op.id, 'sum': op.sum, 'comment': op.comment, 'kod_cat': op.kod_cat.name} for op in day_operation]
+            day_operations_serialized = [{'id': op.id, 'sum': op.sum, 'comment': op.comment, 'kod_cat': op.kod_cat.name, 'image_url': op.kod_cat.image_url} for op in day_operation]
             grouped_operation[day] = day_operations_serialized
             print(type(grouped_operation[day]))
 

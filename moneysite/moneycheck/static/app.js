@@ -1,4 +1,4 @@
-Vue.component('datepicker', vuejsDatepicker);
+// Vue.component('datepicker', DatePicker);
 var currentUrl = window.location.href;
 const host = 'http://127.0.0.1:8000';
 // Вывод текущего URL в консоль
@@ -6,13 +6,15 @@ new Vue({
     el: '#frontend',
     data: {
         cats: [],
-        images: ['/static/cat_images/products.png', '/static/cat_images/benzin.png'],
+        images: ['/static/cat_images/products.png', '/static/cat_images/benzin.png', '/static/cat_images/clothes.png', '/static/cat_images/gift.png', '/static/cat_images/haircut.png', '/static/cat_images/health.png', '/static/cat_images/market.png', '/static/cat_images/restaurant.png', '/static/cat_images/salary.png', '/static/cat_images/sport.png', '/static/cat_images/transport.png'],
         show: false,
         showAddPlan: false,
         showEdPlan: false,
         showAddCat: false,
         showEdCat: false,
         showImageCat: false,
+        operation_rus: '',
+        formattedDate: '',
         precent: '',
         comment: '',
         cat_image: '',
@@ -55,9 +57,10 @@ new Vue({
         formDelCat: {
             cat_id: '',
         },
-        selectedDate: new Date(),
+        selectedDate: '',
     },
     created: function () {
+        this.selectedDate = this.getCurrentDate();
         const vm = this;
         if (currentUrl == `${host}/spending/`) {
             axios.get('/api/category/spending/')
@@ -65,8 +68,11 @@ new Vue({
             vm.cats = response.data.cats;
             vm.total = response.data.total;
             vm.operation = 'spending';
+            vm.operation_rus = 'Расходы';
 
-
+            response.data.cats.forEach(cat => {
+                cat.opDate = moment(cat.opDate).tz("Europe/Moscow").format('YYYY-MM-DDTHH:mm:ss');
+            });
             var ctx = document.getElementById('pieChart').getContext('2d');
 
         var pieChart = new Chart(ctx, {
@@ -96,6 +102,11 @@ new Vue({
             vm.cats = response.data.cats;
             vm.total = response.data.total;
             vm.operation = 'profit';
+            vm.operation_rus = 'Доходы';
+
+            response.data.cats.forEach(cat => {
+                cat.opDate = moment(cat.opDate).tz("Europe/Moscow").format('YYYY-MM-DDTHH:mm:ss');
+            });
 
             var ctx = document.getElementById('pieChart').getContext('2d');
 
@@ -123,13 +134,30 @@ new Vue({
         }
     },
     methods: {
-        openModal: function(name, id, precent, plan_id, plan_sum) {
+        getCurrentDate() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hour = String(now.getHours()).padStart(2, '0');
+            const minute = String(now.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hour}:${minute}`;
+    },
+        // handleDateChange(date) {
+        //     // Use moment-timezone to adjust to Moscow timezone
+        //     const moscowDate = moment(date).tz("Europe/Moscow");
+        //     this.selectedDate = moscowDate.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+        //     this.formattedDate = moscowDate.format('YYYY-MM-DD');
+        //     console.log(this.selectedDate);
+        //     },
+        openModal: function(name, id, precent, plan_id, plan_sum, image_url) {
             this.show = true;
             this.cat_name = name;
             this.cat_id = id;
             this.precent = precent;
             this.plan_id = plan_id;
             this.sumPlan = plan_sum;
+            this.cat_image = image_url;
         },
         openModalAddPlan: function() {
             this.showAddPlan = true;
@@ -151,7 +179,11 @@ new Vue({
             window.location.reload();
             this.show = false;
         },
+        closeModalNoReload: function () {
+            this.show = false;
+        },
         closeModalEdPlan: function() {
+            window.location.reload();
             this.showEdPlan = false;
         },
         closeModalAddPlan: function() {
@@ -185,10 +217,12 @@ new Vue({
             this.result = this.result.slice(0, -1);
         },
         submitForm() {
+            const moscowDate = moment(this.selectedDate).tz("Europe/Moscow").format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+            window.location.reload();
             this.formData.sum = this.result;
             this.formData.comment = this.comment;
             this.formData.cat_id = this.cat_id;
-            this.formData.opDate = this.selectedDate;
+            this.formData.opDate = moscowDate;
             this.result = '';
             axios.post('/api/add-operation/', this.formData, {
                 headers: {

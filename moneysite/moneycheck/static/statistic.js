@@ -1,4 +1,4 @@
-Vue.component('datepicker', vuejsDatepicker);
+// Vue.component('datepicker', DatePicker);
 var currentUrl = window.location.href;
 const url = new URL(currentUrl);
 const host = 'http://127.0.0.1:8000';
@@ -12,24 +12,6 @@ console.log('Операция:', operation);
 console.log('Год:', year);
 console.log('Месяц:', month);
 
-//var ctx = document.getElementById('pieChart').getContext('2d');
-//
-//var pieChart = new Chart(ctx, {
-//      type: 'pie', // Тип графика - круговая диаграмма
-//      data: {
-//        labels: ['Red', 'Blue', 'Yellow'], // Метки для секторов диаграммы
-//        datasets: [{
-//          label: 'My First Dataset',
-//          data: [300, 50, 100], // Данные для секторов диаграммы
-//          backgroundColor: [
-//            'rgb(255, 99, 132)', // Цвет первого сектора
-//            'rgb(54, 162, 235)', // Цвет второго сектора
-//            'rgb(255, 205, 86)' // Цвет третьего сектора
-//          ],
-//          hoverOffset: 4 // Отступ при наведении на сектор
-//        }]
-//      }
-//    });
 new Vue ({
     el: '#statistic',
 //    mounted: function() {
@@ -40,6 +22,7 @@ new Vue ({
         num: '4345',
         grouped_operation: '',
         operation: '',
+        operation_rus: '',
         month: '',
         year: '',
         months_year: '',
@@ -90,9 +73,11 @@ new Vue ({
             if (response.data.operation == 'spending') {
                 this.showSpending = false;
                 this.showProfit = true;
+                vm.operation_rus = 'Расходы';
             } else {
                 this.showSpending = true;
                 this.showProfit = false;
+                vm.operation_rus = 'Доходы';
             }
             console.log(this.current_year);
             console.log(this.showProfit);
