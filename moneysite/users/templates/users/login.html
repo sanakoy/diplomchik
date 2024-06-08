@@ -1,12 +1,28 @@
+{% extends 'base_auth.html' %}
+{% block content_auth %}
 {{ title }}
-<form action="" method="post">
-    {% csrf_token %}
-    <div class="form-error">{{ form.non_field_errors }}</div>
-    {% for f in form %}
-        <p><label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}</p>
-        <div class="form-error">{{ f.errors }}</div>
-    {% endfor %}
-    <p><button type="submit">Войти</button></p>
-</form>
-<p>{{not_valid}}</p>
-<p>Нет аккаунта? <a href="{% url 'users:register' %}">Зарегистироваться!</a> | <a href="{% url 'users:password_reset' %}">Забыли пароль?</a></p>
+<div class="container container1">
+    <div class="password-change">
+        <div class="profile-title">
+            <h2>MoneyCheck - это сайт для учета финансовых операций, что является неотъемлемой частью финансовой грамотности!</h2>
+            <br>
+            <h1>{{title}}</h1>
+        </div>
+        <form action="" method="post" class="profile-info">
+            {% csrf_token %}
+            <div class="form-error">{{ form.non_field_errors }}</div>
+            {% for f in form %}
+                <p><label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}:</label>{{ f }}</p>
+                <div class="form-error">{{ f.errors }}</div>
+            {% endfor %}
+            <div class="login-btn">
+                <p><button type="submit">Войти</button></p>
+            </div>
+        </form>
+        <p>{{not_valid}}</p>
+        <div class="login-url-register">
+            <p>Нет аккаунта? <a href="{% url 'users:register' %}">Зарегистироваться!</a> | <a href="{% url 'users:password_reset' %}">Забыли пароль?</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

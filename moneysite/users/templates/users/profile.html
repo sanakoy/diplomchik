@@ -1,9 +1,20 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1>{{title}}</h1>
-<p>Логин: {{user.username}}</p>
-<p>Эл. почта: {{user.email}}</p>
-<p><a href="{% url 'users:password_change' %}">Сменить пароль</a></p>
-
+<div class="container container1">
+    <div class="profile">
+        <div class="profile-title">
+            <h1>{{title}}</h1>
+        </div>
+        <div class="profile-info">
+            <p>Логин: {{user.username}}</p>
+            <p>Эл. почта: {{user.email}}</p>
+        </div>
+        <div class="profile-switch-pass">
+            <button>
+                <a href="{% url 'users:password_change' %}">Сменить пароль</a>
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}

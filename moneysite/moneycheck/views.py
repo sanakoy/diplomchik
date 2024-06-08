@@ -299,7 +299,7 @@ class StatisticAPIView(APIView):
         operations_for_month = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(kod_cat__user=request.user)
 
         unique_years = operations_for_month.annotate(year=ExtractYear('date')).values_list('year', flat=True).distinct()
-
+        print(unique_years)
         # Создаем словарь, в котором ключами будут годы, а значениями - списки месяцев для каждого года
         months_by_year = defaultdict(list)
 
@@ -308,7 +308,7 @@ class StatisticAPIView(APIView):
             unique_months_for_year = operations_for_month.filter(date__year=year).annotate(
                 month=ExtractMonth('date')).values_list('month', flat=True).distinct()
             months_by_year[year] = sorted(unique_months_for_year, reverse=True)
-
+        print(months_by_year)
         # Теперь отсортируем словарь по ключам (годам) в порядке убывания
         sorted_months_by_year = dict(sorted(months_by_year.items(), reverse=True))
 

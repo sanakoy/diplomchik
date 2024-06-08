@@ -48,7 +48,7 @@ new Vue ({
         formDelOp: {
             opId: '',
         },
-        selectedDate: new Date(),
+        selectedDate: '',
         data: {
             labels: ['January', 'February', 'March'],
             datasets: [{ data: [40, 20, 12] }]
@@ -59,14 +59,21 @@ new Vue ({
 
     },
     created: function() {
-            const vm = this;
+        const vm = this;
         axios.get(`/api/statistic/${operation}/${year}/${month}/`)
         .then(function (response){
             vm.grouped_operation = response.data.grouped_operation;
             vm.operation = response.data.operation;
             vm.month =  response.data.month;
             vm.year =  response.data.year;
-            vm.months_year =  response.data.months_year;
+            const sortedKeys = Object.keys(response.data.months_year).sort((a, b) => parseInt(b) - parseInt(a));
+            const sortedMonthsYear = {};
+            sortedKeys.forEach(key => {
+                sortedMonthsYear[key] = response.data.months_year[key];
+            });
+            console.log(sortedMonthsYear);
+            // Присваиваем отсортированные данные
+            vm.months_year = sortedMonthsYear;
             vm.total =  response.data.total;
             vm.current_month = response.data.current_month;
             vm.current_year = response.data.current_year;
@@ -134,10 +141,12 @@ new Vue ({
             this.opSum = this.opSum.slice(0, -1);
         },
         submitEdOp() {
+            window.location.reload();
             this.formEdOp.opSum = this.opSum;
             this.formEdOp.opComment = this.opComment;
             this.formEdOp.opId = this.opId;
-            this.formEdOp.opDate = this.selectedDate;
+            // this.formEdOp.opDate = this.selectedDate;
+            this.formEdOp.opDate = moment(this.selectedDate).utc().format('YYYY-MM-DDTHH:mm:ss.SSS') + 'Z';
             this.opSum = '';
             axios.post('/api/ed-operation/', this.formEdOp, {
                 headers: {
@@ -174,4 +183,12 @@ new Vue ({
         },
 
     },
+    computed: {
+        sortedMonthsYear() {
+            const sortedEntries = Object.entries(this.months_year).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
+            const sortedMonthsYear = Object.fromEntries(sortedEntries);
+            console.log(sortedMonthsYear);
+            return sortedMonthsYear;
+        }
+    }
 })

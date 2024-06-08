@@ -11,14 +11,13 @@ from .forms import *
 
 current_month = datetime.now().month # для того, чтобы изначально выводилась статистика по текущему месяцу
 current_year = datetime.now().year
-menu = [
-    {'title': 'Расходы', 'url_name': 'index', 'slug': 'spending'},
-    {'title': 'Доходы', 'url_name': 'index', 'slug': 'profit'},
-    {'title': 'Статистика', 'url_name': 'statistic', 'operation': 'spending', 'year': current_year, 'month': current_month},
-    {'title': 'Профиль', 'url_name': 'users:profile'},
-    {'title': 'Выйти', 'url_name': 'users:logout'},
-
-]
+menu_dict = {
+        'spending': {'title': 'Расходы', 'url_name': 'index', 'slug': 'spending'},
+        'profit': {'title': 'Доходы', 'url_name': 'index', 'slug': 'profit'},
+        'statistic': {'title': 'Статистика', 'url_name': 'statistic', 'operation': 'spending', 'year': current_year, 'month': current_month},
+        'profile': {'title': 'Профиль', 'url_name': 'users:profile'},
+        'logout': {'title': 'Выйти', 'url_name': 'users:logout'},
+}
 # Create your views here.
 # class LoginUser(LoginView):
 #     form_class = LoginUserForm
@@ -101,7 +100,7 @@ def profileuser(request):
     context = {
         'title': title,
         'user': user,
-        'menu': menu,
+        'menu': menu_dict,
     }
     return render(request, 'users/profile.html', context=context)
 
@@ -109,4 +108,4 @@ class UserPasswordChange(PasswordChangeView):
     form_class = UserPasswordChangeForm
     success_url = reverse_lazy("users:password_change_done")
     template_name = "users/password-change.html"
-    extra_context = {'title': 'Смена пароля'}
+    extra_context = {'title': 'Смена пароля', 'menu': menu_dict}
