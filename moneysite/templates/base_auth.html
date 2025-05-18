@@ -15,19 +15,11 @@
 <div class="rectangle">
     <div class="container">
         <div class="navbar">
-            <div class="nav-left">
-            <a href="{% url menu.spending.slug %}">Расходы</a>
-            <a href="{% url menu.profit.slug %}">Доходы</a>
-                <a href="{% url menu.statistic.url_name menu.statistic.operation menu.statistic.year menu.statistic.month %}">Статистика<a>
-            </div>
-            <div class="nav-right">
-                <a href="{% url menu.profile.url_name %}">Профиль</a>
-                    <a href="{% url menu.logout.url_name %}">Выйти</a>
-            </div>
+            <h1>MoneyCheck</h1>
         </div>
     </div>
 </div>
-{% block content %} {% endblock %}
+{% block content_auth %} {% endblock %}
 <!--<script src="/static/statistic.js"></script>-->
 </body>
 </html>

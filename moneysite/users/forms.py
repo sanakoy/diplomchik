@@ -42,7 +42,7 @@ class ProfileUserForm(forms.ModelForm):
         fields = ['username', 'email']
 
 class UserPasswordChangeForm(PasswordChangeForm):
-    old_password = forms.CharField(label="Старый пароль")
-    new_password1 = forms.CharField(label="Новый пароль")
-    new_password2 = forms.CharField(label="Подтвердите новый пароль")
+    old_password = forms.CharField(label="Старый пароль", widget=forms.PasswordInput(render_value=True))
+    new_password1 = forms.CharField(label="Новый пароль", widget=forms.PasswordInput(render_value=True))
+    new_password2 = forms.CharField(label="Подтвердите новый пароль", widget=forms.PasswordInput(render_value=True))
 
