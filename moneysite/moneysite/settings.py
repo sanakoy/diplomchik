@@ -13,6 +13,9 @@ import os
 from pathlib import Path
 
 
+os.environ['PGCLIENTENCODING'] = 'UTF8'
+# os.environ.setdefault('LANG', 'en_US.UTF-8')
+# os.environ.setdefault('LC_ALL', 'en_US.UTF-8')
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -85,8 +88,11 @@ DATABASES = {
         'NAME': 'moneycheck',
         'USER': 'postgres',
         'PASSWORD': '1',
-        'HOST': 'localhost',  # или IP-адрес вашего сервера PostgreSQL
-        'PORT': '5432',  # порт, на котором запущен Po
+        'HOST': '127.0.0.1',  # или IP-адрес вашего сервера PostgreSQL
+        'PORT': '5435',  # порт, на котором запущен Po
+        'OPTIONS': {
+            'client_encoding': 'UTF8',
+        }
     }
 }
 DEFAULT_CHARSET = 'utf-8'

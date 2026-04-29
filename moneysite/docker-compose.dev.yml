@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+ postgres:
+   image: postgres:15
+   container_name: moneycheck
+   environment:
+     POSTGRES_USER: postgres
+     POSTGRES_PASSWORD: 1
+     POSTGRES_DB: moneycheck
+   ports:
+     - "5435:5432"
+   volumes:
+     - postgres_data_local:/var/lib/postgresql/data
+   restart: unless-stopped
+
+
+volumes:
+ postgres_data_local:
+
+
