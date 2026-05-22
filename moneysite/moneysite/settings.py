@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-m)3^ztnfdm7-$5p&ulmp_!#=(&ay!v-aw-n1hme(^plss(3)2t
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -85,11 +85,13 @@ WSGI_APPLICATION = 'moneysite.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'moneycheck',
+        'NAME': 'db_diplomchik',
         'USER': 'postgres',
         'PASSWORD': '1',
-        'HOST': '127.0.0.1',  # или IP-адрес вашего сервера PostgreSQL
-        'PORT': '5435',  # порт, на котором запущен Po
+        'HOST': '127.0.0.1',
+        'PORT': '5437',
+        'CONN_MAX_AGE': 1800,
+        'CONN_HEALTH_CHECKS': True,
         'OPTIONS': {
             'client_encoding': 'UTF8',
         }

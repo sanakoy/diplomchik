@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+ postgres_diplomchik:
+   image: postgres:15
+   container_name: db_diplomchik
+   environment:
+     POSTGRES_USER: postgres
+     POSTGRES_PASSWORD: 1
+     POSTGRES_DB: db_diplomchik
+   ports:
+     - "5437:5432"
+   volumes:
+     - postgres_data_diplomchik:/var/lib/postgresql/data
+   restart: unless-stopped
+
+
+volumes:
+ postgres_data_diplomchik:
+
+

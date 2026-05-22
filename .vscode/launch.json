@@ -9,11 +9,12 @@
             "type": "debugpy",
             "request": "launch",
             "args": [
-                "runserver"
+                "runserver",
+                "8003",
             ],
             "django": true,
             "autoStartBrowser": false,
-            "program": "${workspaceFolder}\\moneysite\\manage.py"
+            "program": "${workspaceFolder}/moneysite/manage.py"
         }
     ]
 }

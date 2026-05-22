@@ -1,37 +1,23 @@
 from collections import defaultdict
 from itertools import groupby
-
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models.functions import Coalesce, TruncMonth, ExtractMonth, ExtractYear
-from django.shortcuts import render, redirect, get_object_or_404, reverse
-from django.db.models import Sum, Count
-from django.http import HttpResponse, JsonResponse
-import locale
+from django.db.models.functions import ExtractMonth, ExtractYear
+from django.shortcuts import render
+from django.db.models import Sum, Q, FilteredRelation
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
-
 from datetime import datetime
-
-from rest_framework import generics
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.utils import timezone
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from .forms import *
 from .models import Category, Operation
-from .serializers import CategorySerializer, CategorySerializer1
+from .serializers import CategorySerializer1
 
 current_month = datetime.now().month # для того, чтобы изначально выводилась статистика по текущему месяцу
 current_year = datetime.now().year
-# menu = {
-#     'menus': [
-#         {'title': 'Расходы', 'url_name': 'index', 'slug': 'spending'},
-#         {'title': 'Доходы', 'url_name': 'index', 'slug': 'profit'},
-#         {'title': 'Статистика', 'url_name': 'statistic', 'operation': 'spending', 'year': current_year, 'month': current_month},
-#         {'title': 'Профиль', 'url_name': 'users:profile'},
-#         {'title': 'Выйти', 'url_name': 'users:logout'},
-#     ]
-# }
+
 
 menu =  [
         {'title': 'Расходы', 'url_name': 'index', 'slug': 'spending'},
@@ -80,10 +66,8 @@ def upd_cat_sum(id):
 
 class CategoryAPIView(APIView):
     def get(self, request):
-        
         current_url = request.build_absolute_uri()
-        print(current_url)
-        if current_url == "http://127.0.0.1:8000/api/category/spending/":
+        if current_url == "http://127.0.0.1:8003/api/category/spending/":
             is_profit = False
             operation = "spending"
             operation_rus = "Расходы"
@@ -91,43 +75,70 @@ class CategoryAPIView(APIView):
             is_profit = True
             operation = "profit"
             operation_rus = "Доходы"
+
+        now = datetime.now()
+        current_year = now.year
+        current_month = now.month
+
+        # --- ЗАПРОС 1 ---
+        # Точный аналог FastAPI: outerjoin с условием внутри ON.
+        # FilteredRelation принудительно добавляет условие в ON clause LEFT OUTER JOIN'а.
+        categories_query = Category.objects.filter(
+            user=request.user,
+            is_profit=is_profit
+        ).annotate(
+            current_operations=FilteredRelation(
+                'operation',
+                condition=Q(
+                    operation__date__year=current_year,
+                    operation__date__month=current_month
+                )
+            )
+        ).annotate(
+            calculated_cat_sum=Sum('current_operations__sum')
+        ).order_by('date_create')
+        
+        # Выполняем запрос в БД (аналог rows = (await session.execute(query)).all())
+        categories = list(categories_query)
+
+        # --- ЗАПРОС 2 ---
+        # Точный аналог FastAPI: подгружаем планы отдельным запросом через ID (selectinload)
+        cat_ids = [cat.id for cat in categories]
+        
+        # select_related('plan') сделает LEFT JOIN к планам для нужных ID
+        cats_with_plans = Category.objects.select_related('plan').filter(id__in=cat_ids)
+        
+        # Создаем мапу {cat_id: plan} как в FastAPI (plans_map)
+        plans_map = {cat.id: cat.plan for cat in cats_with_plans}
+
+        # --- ПИТОНОВСКАЯ ЛОГИКА ---
         data = []
-        all_operation = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(
-            kod_cat__user=request.user).filter(date__month=current_month).filter(date__year=current_year)
-
         cats_sum = {}
-        for i in all_operation:
-            if i.kod_cat.name not in cats_sum.items():
-                cats_sum[i.kod_cat.name] = all_operation.filter(kod_cat=i.kod_cat).aggregate(total_sum=Sum('sum'))['total_sum']
+        total = 0.0
 
-        print("cats: ", cats_sum)
-        total = all_operation.aggregate(total_sum=Sum('sum'))['total_sum']
-        if total == None:
-            total = 0.0
-
-        categories = Category.objects.filter(user=request.user, is_profit=is_profit).order_by('date_create')
         for category in categories:
+            # Парсим сумму (cat_sum из Запроса 1)
+            sum_val = float(category.calculated_cat_sum) if category.calculated_cat_sum else 0.0
+            cats_sum[category.name] = sum_val
+            total += sum_val
+
+            # Забираем план из мапы Запроса 2
+            plan = plans_map.get(category.id)
+
+            # Сериализуем
             serializer_data = CategorySerializer1(category).data
-
-                # Получаем связанный объект Plan и его precent
-            plan = category.plan
-
-            # Если план существует, получаем precent, иначе присваиваем None
-            plan_precent = plan.precent if plan else None
-            plan_sum = plan.plan_sum if plan else None
-
-                # Добавляем precent в данные категории
-            serializer_data['precent'] = plan_precent
-            serializer_data['plan_sum'] = plan_sum
-
+            serializer_data['cat_sum'] = sum_val
+            serializer_data['precent'] = plan.precent if plan else None
+            serializer_data['plan_sum'] = plan.plan_sum if plan else None
 
             data.append(serializer_data)
 
-                # Возвращаем ответ
-        return Response({'cats': data,
-                         'total': total,
-                         'operation': operation,
-                         'cats_sum': cats_sum,})
+        return Response({
+            'cats': data,
+            'total': total,
+            'operation': operation,
+            'cats_sum': cats_sum,
+        })
 
 
 @csrf_exempt
@@ -137,7 +148,6 @@ def add_operation_api(request):
         comment = request.POST.get('comment')
         cat = request.POST.get('cat_id')
         str_date = request.POST.get('opDate')
-        print('json', request.POST)
         # try:
         category = Category.objects.get(pk=cat)
         formate_dat = datetime.strptime(str_date, '%Y-%m-%dT%H:%M:%S.%fZ')
@@ -172,7 +182,6 @@ def add_plan_api(request):
         plan = Plan.objects.create(precent=round(precent, 1), plan_sum=sum)
         category.plan = plan
         category.save()
-        print('json', request.POST)
 
     return JsonResponse({'message': 'Plan saved successfully', 'plan_id': plan.id})
 
@@ -184,7 +193,6 @@ def ed_plan_api(request):
         sum = request.POST.get('sum')
         plan_id = request.POST.get('plan_id')
         cat_id = request.POST.get('cat_id')
-        print('json', request.POST)
         try:
             plan = Plan.objects.get(pk=plan_id)
             # total = Operation.objects.filter(kod_cat=cat_id).aggregate(total_sum=Sum('sum'))['total_sum']
@@ -208,7 +216,6 @@ def ed_plan_api(request):
 def del_plan_api(request):
     if request.method == 'POST':
         plan_id = request.POST.get('plan_id')
-        print('json', request.POST)
         try:
             plan = Plan.objects.get(pk=plan_id)
             plan.delete()
@@ -228,8 +235,7 @@ def add_cat_api(request):
             is_profit = False
         else:
             is_profit = True
-        date = datetime.now()
-        print('json', request.POST)
+        date = timezone.now()
         Category.objects.create(name=name, user=request.user, date_create=date, date_upd_cat_sum=date, cat_sum=0, image_url=image, is_profit=is_profit)
     return JsonResponse({'message': 'Добавление категории'})
 
@@ -239,7 +245,6 @@ def ed_cat_api(request):
         name = request.POST.get('cat_name')
         id = request.POST.get('cat_id')
         image = request.POST.get('cat_image')
-        print('json', request.POST)
         category = Category.objects.get(pk=id)
         category.name = name
         if image != '':
@@ -250,7 +255,6 @@ def ed_cat_api(request):
 @csrf_exempt
 def del_cat_api(request):
     if request.method == 'POST':
-        print('json', request.POST)
         id = request.POST.get('cat_id')
         category = Category.objects.get(pk=id)
         category.delete()
@@ -266,61 +270,76 @@ def vue_statistic(request, operation, year, month):
     return render(request, "moneycheck/vue_statistic.html", context={'menu': menu_dict})
 
 class StatisticAPIView(APIView):
-
     def get(self, request, operation, year, month):
-        operation = operation
-        month = month
-        year = year
-        if operation == 'spending':
-            is_profit = False
+        is_profit = (operation == 'profit')
 
-        elif operation == 'profit':
-            is_profit = True
+        now = datetime.now()
+        current_month = now.month
+        current_year = now.year
 
-        all_operation = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(
-            kod_cat__user=request.user).filter(date__month=month).filter(date__year=year).order_by('-date')
+        # --- ЗАПРОС 1: Достаем все операции за месяц + категории ---
+        # Использование select_related('kod_cat') решает проблему N+1 
+        # при обращении к op.kod_cat.name и op.kod_cat.image_url
+        operations = list(
+            Operation.objects.filter(
+                kod_cat__is_profit=is_profit,
+                kod_cat__user=request.user,
+                date__year=year,
+                date__month=month
+            ).select_related('kod_cat').order_by('-date')
+        )
 
-        cats_sum = {}
-        for i in all_operation:
-            if i.kod_cat.name not in cats_sum.items():
-                cats_sum[i.kod_cat.name] = all_operation.filter(kod_cat=i.kod_cat).aggregate(total_sum=Sum('sum'))['total_sum']
-
-
-        print("cats: ", cats_sum)
-        total = all_operation.aggregate(total_sum=Sum('sum'))['total_sum']
-        if total == None:
-            total = 0.0
+        # --- ПИТОНОВСКАЯ ЛОГИКА АГРЕГАЦИИ В ПАМЯТИ ---
+        # Заменяет тяжелые .aggregate() в цикле и itertools.groupby
         grouped_operation = {}
-        for day, day_operation in groupby(all_operation, key=lambda x: x.date.strftime('%d %B')):
-            day_operations_serialized = [{'id': op.id, 'sum': op.sum, 'comment': op.comment, 'kod_cat': op.kod_cat.name, 'image_url': op.kod_cat.image_url} for op in day_operation]
-            grouped_operation[day] = day_operations_serialized
-            print(type(grouped_operation[day]))
+        cats_sum = {}
+        total = 0.0
 
-        operations_for_month = Operation.objects.filter(kod_cat__is_profit=is_profit).filter(kod_cat__user=request.user)
+        for op in operations:
+            op_sum = float(op.sum) if op.sum else 0.0
+            total += op_sum
 
-        unique_years = operations_for_month.annotate(year=ExtractYear('date')).values_list('year', flat=True).distinct()
-        print(unique_years)
-        # Создаем словарь, в котором ключами будут годы, а значениями - списки месяцев для каждого года
+            # Считаем сумму по категориям (cats_sum)
+            cat_name = op.kod_cat.name
+            cats_sum[cat_name] = cats_sum.get(cat_name, 0.0) + op_sum
+
+            # Формируем кроссплатформенный ключ дня без ведущих нулей (например, "15 May")
+            day_key = f"{op.date.day} {op.date.strftime('%B')}"
+
+            # Группируем операции по дням (вместо itertools.groupby)
+            if day_key not in grouped_operation:
+                grouped_operation[day_key] = []
+            
+            grouped_operation[day_key].append({
+                'id': op.id,
+                'sum': op_sum,
+                'comment': op.comment,
+                'kod_cat': cat_name,
+                'image_url': op.kod_cat.image_url
+            })
+
+        # --- ЗАПРОС 2: История месяцев и лет ---
+        # Достаем все уникальные комбинации "год-месяц" ОДНИМ запросом.
+        # Метод .values().distinct() заменяет вложенные циклы
+        history_qs = Operation.objects.filter(
+            kod_cat__is_profit=is_profit,
+            kod_cat__user=request.user
+        ).values('date__year', 'date__month').distinct().order_by('-date__year', '-date__month')
+
         months_by_year = defaultdict(list)
-
-        # Извлекаем уникальные месяцы для каждого года и добавляем их в соответствующий список месяцев
-        for year in unique_years:
-            unique_months_for_year = operations_for_month.filter(date__year=year).annotate(
-                month=ExtractMonth('date')).values_list('month', flat=True).distinct()
-            months_by_year[year] = sorted(unique_months_for_year, reverse=True)
-        print(months_by_year)
-        # Теперь отсортируем словарь по ключам (годам) в порядке убывания
-        sorted_months_by_year = dict(sorted(months_by_year.items(), reverse=True))
-
-        # Выведем словарь, где ключи это года, а значения это списки уникальных месяцев для каждого года
-
+        for row in history_qs:
+            y = row['date__year']
+            m = row['date__month']
+            if y is not None and m is not None:
+                # В возвращаемом JSON ключи годов — это строки (например, "2026")
+                months_by_year[str(y)].append(m)
 
         return Response({
             'grouped_operation': grouped_operation,
             'operation': operation,
             'month': month,
             'year': year,
-            'months_year': sorted_months_by_year,
+            'months_year': dict(months_by_year),
             'total': total,
             'cats_sum': cats_sum,
             'current_month': current_month,
@@ -334,9 +353,6 @@ def ed_operation_api(request):
         comment = request.POST.get('opComment')
         id = request.POST.get('opId')
         str_date = request.POST.get('opDate')
-        print(str_date)
-        print('json', request.POST)
-        # try:
         operation = Operation.objects.get(pk=int(id))
         operation.sum = sum
         operation.comment = comment
@@ -360,7 +376,6 @@ def ed_operation_api(request):
 def del_operation_api(request):
     if request.method == 'POST':
         id = request.POST.get('opId')
-        print('json', request.POST)
         try:
             operation = Operation.objects.get(pk=id)
             category = Category.objects.get(pk=operation.kod_cat.id)
@@ -376,7 +391,6 @@ def del_operation_api(request):
                     precent = total / plan.plan_sum * 100
                 plan.precent = round(precent, 1)
                 plan.save()
-                print(plan.precent)
         except ObjectDoesNotExist:
             print('ашипка')
         return JsonResponse({'message': 'Plan saved successfully', 'op_id': operation.id})

@@ -1,6 +1,6 @@
 // Vue.component('datepicker', DatePicker);
 var currentUrl = window.location.href;
-const host = 'http://127.0.0.1:8000';
+const host = 'http://127.0.0.1:8003';
 // Вывод текущего URL в консоль
 new Vue({
     el: '#frontend',
@@ -289,8 +289,7 @@ new Vue({
         },
         submitAddCat() {
             if (this.images.includes(this.cat_image)) {
-
-                window.location.reload();
+                // window.location.reload();
                 if (this.operation == 'spending') {
                     this.formAddCat.operation = 'spending';
                 }
@@ -303,6 +302,8 @@ new Vue({
                 })
                 .then(response => {
                 console.log('Data submitted successfully');
+                window.location.reload();
+
                 })
                 .catch(error => {
                 console.error('Error submitting data:', error);
@@ -331,7 +332,7 @@ new Vue({
             });
         },
         submitDelCat() {
-            window.location.reload();
+            // window.location.reload();
             this.formDelCat.cat_id = this.cat_id;
             axios.post('/api/del-cat/', this.formDelCat, {
                 headers: {
@@ -340,6 +341,7 @@ new Vue({
             })
             .then(response => {
             console.log('Data submitted successfully');
+            window.location.reload();
             })
             .catch(error => {
             console.error('Error submitting data:', error);
