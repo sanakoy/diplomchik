@@ -5,6 +5,7 @@ from django.db.models.functions import ExtractMonth, ExtractYear
 from django.shortcuts import render
 from django.db.models import Sum, Q, FilteredRelation
 from django.http import JsonResponse
+from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
 from django.utils import timezone
@@ -14,6 +15,8 @@ from rest_framework.views import APIView
 from .forms import *
 from .models import Category, Operation
 from .serializers import CategorySerializer1
+from asgiref.sync import sync_to_async
+
 
 current_month = datetime.now().month # для того, чтобы изначально выводилась статистика по текущему месяцу
 current_year = datetime.now().year
@@ -64,82 +67,158 @@ def upd_cat_sum(id):
     cat.save()
 
 
-class CategoryAPIView(APIView):
-    def get(self, request):
+# class CategoryAPIView(APIView):
+    # def get(self, request):
+    #     current_url = request.build_absolute_uri()
+    #     if current_url == "http://127.0.0.1:8003/api/category/spending/":
+    #         is_profit = False
+    #         operation = "spending"
+    #         operation_rus = "Расходы"
+    #     else:
+    #         is_profit = True
+    #         operation = "profit"
+    #         operation_rus = "Доходы"
+
+    #     now = datetime.now()
+    #     current_year = now.year
+    #     current_month = now.month
+
+    #     # --- ЗАПРОС 1 ---
+    #     # Точный аналог FastAPI: outerjoin с условием внутри ON.
+    #     # FilteredRelation принудительно добавляет условие в ON clause LEFT OUTER JOIN'а.
+    #     categories_query = Category.objects.filter(
+    #         user=request.user,
+    #         is_profit=is_profit
+    #     ).annotate(
+    #         current_operations=FilteredRelation(
+    #             'operation',
+    #             condition=Q(
+    #                 operation__date__year=current_year,
+    #                 operation__date__month=current_month
+    #             )
+    #         )
+    #     ).annotate(
+    #         calculated_cat_sum=Sum('current_operations__sum')
+    #     ).order_by('date_create')
+        
+    #     # Выполняем запрос в БД (аналог rows = (await session.execute(query)).all())
+    #     categories = list(categories_query)
+
+    #     # --- ЗАПРОС 2 ---
+    #     # Точный аналог FastAPI: подгружаем планы отдельным запросом через ID (selectinload)
+    #     cat_ids = [cat.id for cat in categories]
+        
+    #     # select_related('plan') сделает LEFT JOIN к планам для нужных ID
+    #     cats_with_plans = Category.objects.select_related('plan').filter(id__in=cat_ids)
+        
+    #     # Создаем мапу {cat_id: plan} как в FastAPI (plans_map)
+    #     plans_map = {cat.id: cat.plan for cat in cats_with_plans}
+
+    #     # --- ПИТОНОВСКАЯ ЛОГИКА ---
+    #     data = []
+    #     cats_sum = {}
+    #     total = 0.0
+
+    #     for category in categories:
+    #         # Парсим сумму (cat_sum из Запроса 1)
+    #         sum_val = float(category.calculated_cat_sum) if category.calculated_cat_sum else 0.0
+    #         cats_sum[category.name] = sum_val
+    #         total += sum_val
+
+    #         # Забираем план из мапы Запроса 2
+    #         plan = plans_map.get(category.id)
+
+    #         # Сериализуем
+    #         serializer_data = CategorySerializer1(category).data
+    #         serializer_data['cat_sum'] = sum_val
+    #         serializer_data['precent'] = plan.precent if plan else None
+    #         serializer_data['plan_sum'] = plan.plan_sum if plan else None
+
+    #         data.append(serializer_data)
+
+    #     return Response({
+    #         'cats': data,
+    #         'total': total,
+    #         'operation': operation,
+    #         'cats_sum': cats_sum,
+    #     })
+class CategoryAPIView(View):  # <-- View, не APIView
+    async def get(self, request):
         current_url = request.build_absolute_uri()
-        if current_url == "http://127.0.0.1:8003/api/category/spending/":
+        if "spending" in current_url:
             is_profit = False
             operation = "spending"
-            operation_rus = "Расходы"
         else:
             is_profit = True
             operation = "profit"
-            operation_rus = "Доходы"
 
         now = datetime.now()
         current_year = now.year
         current_month = now.month
 
-        # --- ЗАПРОС 1 ---
-        # Точный аналог FastAPI: outerjoin с условием внутри ON.
-        # FilteredRelation принудительно добавляет условие в ON clause LEFT OUTER JOIN'а.
-        categories_query = Category.objects.filter(
-            user=request.user,
-            is_profit=is_profit
-        ).annotate(
-            current_operations=FilteredRelation(
-                'operation',
-                condition=Q(
-                    operation__date__year=current_year,
-                    operation__date__month=current_month
-                )
+        # Получаем user_id синхронно через sync_to_async — до любых ORM запросов
+        get_user_id = sync_to_async(lambda: request.user.id)
+        user_id = await get_user_id()
+
+        @sync_to_async
+        def get_categories():
+            return list(
+                Category.objects.filter(
+                    user_id=user_id,  # <-- user_id вместо request.user
+                    is_profit=is_profit
+                ).annotate(
+                    current_operations=FilteredRelation(
+                        'operation',
+                        condition=Q(
+                            operation__date__year=current_year,
+                            operation__date__month=current_month
+                        )
+                    )
+                ).annotate(
+                    calculated_cat_sum=Sum('current_operations__sum')
+                ).order_by('date_create')
             )
-        ).annotate(
-            calculated_cat_sum=Sum('current_operations__sum')
-        ).order_by('date_create')
-        
-        # Выполняем запрос в БД (аналог rows = (await session.execute(query)).all())
-        categories = list(categories_query)
 
-        # --- ЗАПРОС 2 ---
-        # Точный аналог FastAPI: подгружаем планы отдельным запросом через ID (selectinload)
+        @sync_to_async
+        def get_plans(cat_ids):
+            cats_with_plans = Category.objects.select_related('plan').filter(id__in=cat_ids)
+            return {cat.id: cat.plan for cat in cats_with_plans}
+
+        categories = await get_categories()
         cat_ids = [cat.id for cat in categories]
-        
-        # select_related('plan') сделает LEFT JOIN к планам для нужных ID
-        cats_with_plans = Category.objects.select_related('plan').filter(id__in=cat_ids)
-        
-        # Создаем мапу {cat_id: plan} как в FastAPI (plans_map)
-        plans_map = {cat.id: cat.plan for cat in cats_with_plans}
+        plans_map = await get_plans(cat_ids)
 
-        # --- ПИТОНОВСКАЯ ЛОГИКА ---
         data = []
         cats_sum = {}
         total = 0.0
 
         for category in categories:
-            # Парсим сумму (cat_sum из Запроса 1)
             sum_val = float(category.calculated_cat_sum) if category.calculated_cat_sum else 0.0
             cats_sum[category.name] = sum_val
             total += sum_val
 
-            # Забираем план из мапы Запроса 2
             plan = plans_map.get(category.id)
 
-            # Сериализуем
-            serializer_data = CategorySerializer1(category).data
+            # serializer_data = CategorySerializer1(category).data
+            serializer_data = {"id" :category.id,
+            "name" : category.name,
+            "cat_sum" : category.cat_sum,
+            "is_profit" : category.is_profit,
+            "image_url" : category.image_url,
+            "plan_id" : category.plan_id,  # plan_id вместо plan
+            "user_id" : category.user_id}
             serializer_data['cat_sum'] = sum_val
             serializer_data['precent'] = plan.precent if plan else None
             serializer_data['plan_sum'] = plan.plan_sum if plan else None
 
             data.append(serializer_data)
 
-        return Response({
+        return JsonResponse({
             'cats': data,
             'total': total,
             'operation': operation,
             'cats_sum': cats_sum,
         })
-
 
 @csrf_exempt
 def add_operation_api(request):

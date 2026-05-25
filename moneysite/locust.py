@@ -1,23 +1,21 @@
-from locust import HttpUser, constant, constant_throughput, task
+from locust import HttpUser, constant, constant_throughput, tag, task
 
 
 class APIUser(HttpUser):
-    host = "http://127.0.0.1:8000"
+    host = "http://127.0.0.1:8003"
     wait_time = constant_throughput(0.2)
 
     def on_start(self):
-        # Сначала получаем CSRF-токен
-        self.client.get("/users/login/")
-        csrftoken = self.client.cookies.get("csrftoken")
+        self.client.cookies.set("sessionid", "nfb7ppymvviwimz51dgnxjmcf07hl2u1")
+        self.client.cookies.set("csrftoken", "o7tqr16lvvOJudwMpniUbFYDYGG2Xz7O")
 
-        # Логинимся через email (у тебя EmailAuthBackend)
-        self.client.post("/users/login/", data={
-            "username": "boris",
-            "password": "borik2002",
-            "csrfmiddlewaretoken": csrftoken,
-        }, headers={
-            "Referer": "http://127.0.0.1:8000/users/login/"
-        })
+    @tag('get') 
     @task
     def get_categories(self):
         self.client.get("/api/category/spending/")
+
+    @tag("use_case")
+    @task
+    def use_case(self):
+        self.client.get("/api/category/spending/")
+        self.client.get("/api/category")

@@ -82,6 +82,22 @@ WSGI_APPLICATION = 'moneysite.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'db_diplomchik',
+#         'USER': 'postgres',
+#         'PASSWORD': '1',
+#         'HOST': '127.0.0.1',
+#         'PORT': '5437',
+#         'CONN_MAX_AGE': 0,
+#         'CONN_HEALTH_CHECKS': True,
+#         'OPTIONS': {
+#             'client_encoding': 'UTF8',
+#         }
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -89,9 +105,8 @@ DATABASES = {
         'USER': 'postgres',
         'PASSWORD': '1',
         'HOST': '127.0.0.1',
-        'PORT': '5437',
-        'CONN_MAX_AGE': 1800,
-        'CONN_HEALTH_CHECKS': True,
+        'PORT': '5438',
+        'CONN_MAX_AGE': 0,  # обязательно 0 при geventpool
         'OPTIONS': {
             'client_encoding': 'UTF8',
         }

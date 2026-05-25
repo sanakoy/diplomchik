@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
  postgres_diplomchik:
@@ -8,12 +8,28 @@ services:
      POSTGRES_USER: postgres
      POSTGRES_PASSWORD: 1
      POSTGRES_DB: db_diplomchik
+     POSTGRES_HOST_AUTH_METHOD: md5
    ports:
      - "5437:5432"
    volumes:
      - postgres_data_diplomchik:/var/lib/postgresql/data
    restart: unless-stopped
-
+ pgbouncer:
+  image: edoburu/pgbouncer:latest
+  environment:
+    DB_HOST: postgres_diplomchik
+    DB_PORT: 5432
+    DB_NAME: db_diplomchik
+    DB_USER: postgres
+    DB_PASSWORD: 1
+    POOL_MODE: transaction
+    MAX_CLIENT_CONN: 5000
+    DEFAULT_POOL_SIZE: 80
+    AUTH_TYPE: plain
+  ports:
+    - "5438:5432"
+  depends_on:
+    - postgres_diplomchik
 
 volumes:
  postgres_data_diplomchik:
